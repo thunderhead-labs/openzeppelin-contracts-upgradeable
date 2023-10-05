@@ -26,30 +26,39 @@ import "../../proxy/utils/Initializable.sol";
  * When using this module the derived contract must implement {_getVotingUnits} (for example, make it return
  * {ERC721-balanceOf}), and can use {_transferVotingUnits} to track a change in the distribution of those units (in the
  * previous example, it would be included in {ERC721-_beforeTokenTransfer}).
- *
+ *4 insertions 45 deletions
  * _Available since v4.5._
+ *  
+ * FORK INFORMATION
+ * This contract has been modified for use in thunderhead-labs/stflip-contracts. stFLIP is an LST that also serves as a voting
+ * token in governance to ensure it remains non-custodial. Voting should not be opt-in to ensure users keep control.
+ * 
+ * Modifications made in order of appearance:
+ * 1. No longer inherits `ContextUpgradeable, EIP712Upgradeable, IERC5805Upgradeable` since it does not fit those interfaces
+ * anymore
+ * 2. Removed `_DELEGATION_TYPEHASH, _delegation, _nonces` since delegation is disabled. The "delegate" for an address is itself
+ * 3. Removed functions `_delegate, delegateBySig, delegate` since delegation is disabled
+ * 4. Modified `delegates(address who)` to always return `who`
+ * 5. Changed `_moveDelegateVotes(delegates(from), delegates(to), amount)` to `_moveDelegateVotes(from, to, amount)` since an address delegates to itself
+ * 6. Removed `DelegateVotesChanged` emission in `_moveDelegateVotes` since `Transfer` makes it redundant
+ * 7. Removed functions `_useNonce, nonces, DOMAIN_SEPARATOR, _getVotingUnits` since delegation is disabled
+ * 8. Increased __gap length by 2 to account for previously removed variables
+ * 
+ * This change is 4/45 source insertions and deletions respectively
  */
-abstract contract VotesUpgradeable is Initializable, ContextUpgradeable, EIP712Upgradeable, IERC5805Upgradeable {
+abstract contract VotesUpgradeable is Initializable, IERC5805Upgradeable {
     function __Votes_init() internal onlyInitializing {
     }
 
     function __Votes_init_unchained() internal onlyInitializing {
     }
     using CheckpointsUpgradeable for CheckpointsUpgradeable.Trace224;
-    using CountersUpgradeable for CountersUpgradeable.Counter;
-
-    bytes32 private constant _DELEGATION_TYPEHASH =
-        keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
-
-    mapping(address => address) private _delegation;
 
     /// @custom:oz-retyped-from mapping(address => Checkpoints.History)
     mapping(address => CheckpointsUpgradeable.Trace224) private _delegateCheckpoints;
 
     /// @custom:oz-retyped-from Checkpoints.History
     CheckpointsUpgradeable.Trace224 private _totalCheckpoints;
-
-    mapping(address => CountersUpgradeable.Counter) private _nonces;
 
     /**
      * @dev Clock used for flagging checkpoints. Can be overridden to implement timestamp based
@@ -117,50 +126,7 @@ abstract contract VotesUpgradeable is Initializable, ContextUpgradeable, EIP712U
      * @dev Returns the delegate that `account` has chosen.
      */
     function delegates(address account) public view virtual override returns (address) {
-        return _delegation[account];
-    }
-
-    /**
-     * @dev Delegates votes from the sender to `delegatee`.
-     */
-    function delegate(address delegatee) public virtual override {
-        address account = _msgSender();
-        _delegate(account, delegatee);
-    }
-
-    /**
-     * @dev Delegates votes from signer to `delegatee`.
-     */
-    function delegateBySig(
-        address delegatee,
-        uint256 nonce,
-        uint256 expiry,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) public virtual override {
-        require(block.timestamp <= expiry, "Votes: signature expired");
-        address signer = ECDSAUpgradeable.recover(
-            _hashTypedDataV4(keccak256(abi.encode(_DELEGATION_TYPEHASH, delegatee, nonce, expiry))),
-            v,
-            r,
-            s
-        );
-        require(nonce == _useNonce(signer), "Votes: invalid nonce");
-        _delegate(signer, delegatee);
-    }
-
-    /**
-     * @dev Delegate all of `account`'s voting units to `delegatee`.
-     *
-     * Emits events {IVotes-DelegateChanged} and {IVotes-DelegateVotesChanged}.
-     */
-    function _delegate(address account, address delegatee) internal virtual {
-        address oldDelegate = delegates(account);
-        _delegation[account] = delegatee;
-
-        emit DelegateChanged(account, oldDelegate, delegatee);
-        _moveDelegateVotes(oldDelegate, delegatee, _getVotingUnits(account));
+        return account;
     }
 
     /**
@@ -174,7 +140,7 @@ abstract contract VotesUpgradeable is Initializable, ContextUpgradeable, EIP712U
         if (to == address(0)) {
             _push(_totalCheckpoints, _subtract, SafeCastUpgradeable.toUint224(amount));
         }
-        _moveDelegateVotes(delegates(from), delegates(to), amount);
+        _moveDelegateVotes(from, to, amount);
     }
 
     /**
@@ -188,7 +154,6 @@ abstract contract VotesUpgradeable is Initializable, ContextUpgradeable, EIP712U
                     _subtract,
                     SafeCastUpgradeable.toUint224(amount)
                 );
-                emit DelegateVotesChanged(from, oldValue, newValue);
             }
             if (to != address(0)) {
                 (uint256 oldValue, uint256 newValue) = _push(
@@ -196,7 +161,6 @@ abstract contract VotesUpgradeable is Initializable, ContextUpgradeable, EIP712U
                     _add,
                     SafeCastUpgradeable.toUint224(amount)
                 );
-                emit DelegateVotesChanged(to, oldValue, newValue);
             }
         }
     }
@@ -218,40 +182,9 @@ abstract contract VotesUpgradeable is Initializable, ContextUpgradeable, EIP712U
     }
 
     /**
-     * @dev Consumes a nonce.
-     *
-     * Returns the current value and increments nonce.
-     */
-    function _useNonce(address owner) internal virtual returns (uint256 current) {
-        CountersUpgradeable.Counter storage nonce = _nonces[owner];
-        current = nonce.current();
-        nonce.increment();
-    }
-
-    /**
-     * @dev Returns an address nonce.
-     */
-    function nonces(address owner) public view virtual returns (uint256) {
-        return _nonces[owner].current();
-    }
-
-    /**
-     * @dev Returns the contract's {EIP712} domain separator.
-     */
-    // solhint-disable-next-line func-name-mixedcase
-    function DOMAIN_SEPARATOR() external view returns (bytes32) {
-        return _domainSeparatorV4();
-    }
-
-    /**
-     * @dev Must return the voting units held by an account.
-     */
-    function _getVotingUnits(address) internal view virtual returns (uint256);
-
-    /**
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.
      * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
      */
-    uint256[46] private __gap;
+    uint256[48] private __gap;
 }

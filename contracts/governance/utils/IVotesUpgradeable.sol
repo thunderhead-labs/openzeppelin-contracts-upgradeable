@@ -6,18 +6,16 @@ pragma solidity ^0.8.0;
  * @dev Common interface for {ERC20Votes}, {ERC721Votes}, and other {Votes}-enabled contracts.
  *
  * _Available since v4.5._
+ * 
+ * FORK INFORMATION
+ * This contract has been modified for use in thunderhead-labs/stflip-contracts. 
+ * 
+ * Modifications in order of appearence:
+ * 1. Removed event `DelegateChanged` since a delegate cannot change
+ * 2. Removed event `DelegateVotesChanged` since EIP20 `Transfer` makes this redundant
+ * 3. Removed `delegate` and `delegateBySig` since delegation is disabled
  */
 interface IVotesUpgradeable {
-    /**
-     * @dev Emitted when an account changes their delegate.
-     */
-    event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
-
-    /**
-     * @dev Emitted when a token transfer or delegate change results in changes to a delegate's number of votes.
-     */
-    event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);
-
     /**
      * @dev Returns the current amount of votes that `account` has.
      */
@@ -44,13 +42,4 @@ interface IVotesUpgradeable {
      */
     function delegates(address account) external view returns (address);
 
-    /**
-     * @dev Delegates votes from the sender to `delegatee`.
-     */
-    function delegate(address delegatee) external;
-
-    /**
-     * @dev Delegates votes from signer to `delegatee`.
-     */
-    function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) external;
 }
