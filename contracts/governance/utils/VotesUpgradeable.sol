@@ -147,8 +147,9 @@ abstract contract VotesUpgradeable is Initializable, ContextUpgradeable, EIP712U
      * @dev Returns the delegate that `account` has chosen.
      */
     function delegates(address account) public view virtual returns (address) {
-        VotesStorage storage $ = _getVotesStorage();
-        return $._delegatee[account];
+        // VotesStorage storage $ = _getVotesStorage();
+        // return $._delegatee[account];
+        return account;
     }
 
     /**
@@ -189,12 +190,12 @@ abstract contract VotesUpgradeable is Initializable, ContextUpgradeable, EIP712U
      * Emits events {IVotes-DelegateChanged} and {IVotes-DelegateVotesChanged}.
      */
     function _delegate(address account, address delegatee) internal virtual {
-        VotesStorage storage $ = _getVotesStorage();
-        address oldDelegate = delegates(account);
-        $._delegatee[account] = delegatee;
+        // VotesStorage storage $ = _getVotesStorage();
+        // address oldDelegate = delegates(account);
+        // $._delegatee[account] = delegatee;
 
-        emit DelegateChanged(account, oldDelegate, delegatee);
-        _moveDelegateVotes(oldDelegate, delegatee, _getVotingUnits(account));
+        // emit DelegateChanged(account, oldDelegate, delegatee);
+        // _moveDelegateVotes(oldDelegate, delegatee, _getVotingUnits(account));
     }
 
     /**
@@ -275,5 +276,5 @@ abstract contract VotesUpgradeable is Initializable, ContextUpgradeable, EIP712U
     /**
      * @dev Must return the voting units held by an account.
      */
-    function _getVotingUnits(address) internal view virtual returns (uint256);
+    // function _getVotingUnits(address) internal view virtual returns (uint256);
 }
