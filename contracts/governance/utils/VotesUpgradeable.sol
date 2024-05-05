@@ -210,7 +210,7 @@ abstract contract VotesUpgradeable is Initializable, ContextUpgradeable, EIP712U
         if (to == address(0)) {
             _push($._totalCheckpoints, _subtract, SafeCast.toUint208(amount));
         }
-        _moveDelegateVotes(delegates(from), delegates(to), amount);
+        _moveDelegateVotes(from, to, amount);
     }
 
     /**
@@ -225,7 +225,6 @@ abstract contract VotesUpgradeable is Initializable, ContextUpgradeable, EIP712U
                     _subtract,
                     SafeCast.toUint208(amount)
                 );
-                emit DelegateVotesChanged(from, oldValue, newValue);
             }
             if (to != address(0)) {
                 (uint256 oldValue, uint256 newValue) = _push(
@@ -233,7 +232,6 @@ abstract contract VotesUpgradeable is Initializable, ContextUpgradeable, EIP712U
                     _add,
                     SafeCast.toUint208(amount)
                 );
-                emit DelegateVotesChanged(to, oldValue, newValue);
             }
         }
     }
